@@ -2,20 +2,19 @@ The dark side of the runtime
 
 Roberto Clapis
 
-* Who
-Roberto Clapis
+`@`[[https://twitter.com/empijei][empijei]]
 
-Twitter [[twitter.com/empijei][@empijei]]
+[[https://github.com/empijei/gotalks][github.com/empijei/gotalks]]
 
-I am:
+* What do I do
 
-- Free time open source developer
+- Free time: open source developer
 
-- Penetration tester
+- Past: penetration tester & code reviewer
 
-- Information Security Engineer (Google)
+- Present: information security engineer (Google)
 
-.image gophercon/GOOGLE.png 200 _
+.image gophercon/MpjGopher.jpg 400 _
 
 : that's funny effect
 
@@ -54,6 +53,8 @@ I was expecting numbers to be printed in a shuffled fashion
 * Wat
 
 .image gophercon/ConfusedGopher.png 500 _
+
+: two big wats: one on the reliability and one on the tens
 
 * First pitfall
 
