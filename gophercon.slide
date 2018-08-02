@@ -1,0 +1,407 @@
+The dark side of the runtime
+
+Roberto Clapis
+
+* Who
+Roberto Clapis
+
+Twitter [[twitter.com/empijei][@empijei]]
+
+I am:
+
+- Free time open source developer
+
+- Penetration tester
+
+- Information Security Engineer (Google)
+
+.image gophercon/GOOGLE.png 200 _
+
+: that's funny effect
+
+* Why
+
+- Go has a *native* support for concurrency
+
+- Goroutines are *fast* but usually nothing comes for free
+
+- New statements/constructs might conceal *pitfalls*
+
+- I fell in those pitfalls
+
+.image gophercon/gologo.png 250 _
+
+* Scopes
+
+* A first spin
+
+Let's run some goroutines
+
+.play gophercon/tentens/main.go /STARTLOOP/,/STOPLOOP/
+
+I was expecting numbers to be printed in a shuffled fashion
+
+	2
+	1
+	3
+	4
+	6
+	9
+	8
+	7
+	5
+
+* Wat
+
+.image gophercon/ConfusedGopher.png 500 _
+
+* First pitfall
+
+Go has both *closures* and *goroutines* 
+
+Closured variables are evaluated when the goroutine is *run*
+
+.play gophercon/helloclosures/main.go /START/,/STOP/
+
+The iteration variable in a for loop is shared among iterations
+
+ for i := range c {    // ← i declared once
+     go func(){
+       dostuff(i)      // ← used multiple times
+     }()
+ }
+
+: talk about why this happens, introduce next slide
+
+* Why does it always run the same way
+
+Performance reasons:
+
+- Writing to file is I/O and yields execution
+
+- Aware scheduling
+
+- Runtime waits only if necessary
+
+.image gophercon/RunningGopher.png 300 _
+
+: one of the reasons why goroutines are better than threads
+
+* How to find it
+Not so easy to catch
+
+It is hard to write a proper static checker:
+
+	for /* declare variable */ {
+	[...]
+	go func() { /* use variable */ }()
+	// Wait for goroutine to end
+	}
+
+or:
+
+	for /* declare variable */ {
+	[...]
+	go func() { /* use variable */ }()
+	// a return, a panic, or any other statement that might break out of the loop
+	}
+
+[[https://golang.org/doc/faq#closures_and_goroutines][golang FAQ about this]]
+
+* Channels
+Channels provide a thread safe way to send messages
+
+This doesn't mean they are immune to the previous issue
+
+	func Serve(queue chan *http.Request) {
+	    for req := range queue {
+	        go func() {
+	            respond(req) 
+	        }()
+	    }
+	}
+
+Vulnerability: response to the wrong request
+
+* The odd fix
+
+.play gophercon/tentens_fix/main.go /STARTLOOP/,/STOPLOOP/
+
+Taken from [[https://golang.org/doc/effective_go.html][Effective Go]]:
+
+	func Serve(queue chan *Request) {
+	    for req := range queue {
+	        req := req // Create new instance of req for the goroutine.
+	[...]
+
+It may seem odd to write
+
+	req := req
+
+but it's legal and idiomatic in Go to do this.
+
+* The problem
+
+* Let's start digging
+
+.image gophercon/MinerGopher.png 500 _
+
+* The MPG model
+
+.image gophercon/MPG.png 500 _
+
+* Checkpoints
+
+* Runtime is not preemptive
+
+Checkpoints for the scheduler are emitted at compile time
+
+When a goroutine slice of time is up, it is marked as preempted and the control will be given back to the scheduler as soon as a checkpoint is reached.
+
+This means a goroutine is done only when it says it's done
+
+.image gophercon/MicdropGopher.png 350 _
+
+* What
+
+A checkpoint is a piece of code that is silently added during compilation
+
+It is a point in which your code, instead of executing the next line, invokes the runtime
+
+Garbage Collection is (almost) synchronous
+
+The garbage collector does not prevail on this rule: when the runtime detects a collection is necessary, all goroutines are kindly asked to yield execution. (Stop the world)
+
+* Guess the output
+
+.play gophercon/gc/main.go /START/,/STOP/
+
+.image gophercon/ConfusedGopher.png 500 _
+
+* Note
+The runtime deadlock detector will not detect this, as it is _NOT_ a deadlock. 
+
+Code is running and the race detector *cannot* *see* *the* *future* to check if computation will end.
+
+.image gophercon/DrWhoGopher.png 400 _
+
+* Consequences
+
+If you have and endless computation without message passing, just fix it (duh)
+
+If you just happen to have long computations, beware: 
+when a garbage collection happens, all other goroutines will *stop* *and* *wait* until the GC restarts the world
+
+.image gophercon/WaitingGopher.png 350 _
+
+: it doesn't matter how many cores the machine has
+: bitcon example
+
+* Some tricks
+ kill -SIGABRT 
+
+out:
+
+ goroutine 5 [running]:
+ main.main.func1(0xc420014088)
+ 	[...] main.go:11
+ [...]
+ created by main.main
+ 	[...] main.go:10
+ 
+ goroutine 1 [running]:
+ 	goroutine running on other thread; stack unavailable
+
+: pun: since it is the one currently executed, you are going to get a stack for the stuck goroutine
+: H/T Kat Zien for the tip
+
+* Fix it
+The only way to prevent this kind of behavior is to force a checkpoint to be emitted by the compiler
+
+It is not specified by the standard when checkpoints are emitted, but some checkpoints that will likely never go away are:
+
+- channels operations and select statements
+- go statements
+- I/O and syscalls
+- call runtime.Gosched()
+- non-inlined function calls
+
+[ _Please_ _do_ _not_ _rely_ _on_ _this_ _list_ _as_ _it_ _is_ _incomplete_ _and_ _might_ _change_ _in_ _future_ _versions_ ]
+
+: example with nested loops: tell to add checkpoints in some of the outer loops
+: say that 99.9% of the time they are not going to need this, but when they do, this talk is there
+
+* Termination and manual scheduling
+
+: goroutines are not garbage collected
+
+* Stop them
+
+Even if we lose all references to variables that communicate with a goroutine it wont be garbage collected, so:
+
+how do you kill a goroutine?
+
+.image gophercon/KillerGopher.jpg 400 _
+
+* Explicit signals
+
+Goroutines have to be explicitly signalled to end and they have to invoke a `return` statement.
+
+A standard way to do so is to carry around context or done channels and cancel  ongoing computation if not needed: this *also* *implicitly* *inserts* *a* *checkpoint*.
+
+Parent goroutine:
+
+	ctx, cancel := context.WithCancel(ctx)
+	go func(ctx)
+	cancel()
+
+Child goroutine:
+
+	// select also adds a checkpoint
+	select {
+	case <- ctx.Done():
+		return
+	case x <-stuffToDo:
+		doStuff(x)
+	}
+
+: Sameer Ajmani talk
+
+* Simple as that
+Let's take a look in the standard library...
+
+.image gophercon/timeouthandler.png 300 _
+
+[[https://golang.org/pkg/net/http/#TimeoutHandler][http.TimeoutHandler]] wraps a user provided http.Handler... but how does it close the goroutine spawned at every request?
+
+* This is not PHP
+ <?php
+ set_time_limit(2);
+ for($i=0;;$i++){
+ }
+ ?>
+
+ // Maximum execution time of
+ // 2 seconds exceeded
+
+.image gophercon/golang-php.png 300 _
+
+* Then
+One year ago it used to be like this:
+
+	// [...] code to create timer
+	go func() {
+			h.handler.ServeHTTP(tw, r)
+			// Signal done channel
+	}()
+	select {
+	case <-done:
+	// Handle HTTP stuff
+	case <-timeout:
+	// Write error
+	}
+
+With no way to communicate termination. When context was added it got more complicated.
+
+Code [[https://golang.org/src/net/http/server.go?s=95539:95607#L3119][here]].
+
+* Now (edited to fit slide)
+	ctx := h.testContext
+	if ctx == nil {
+		var cancelCtx context.CancelFunc
+		ctx, cancelCtx = context.WithTimeout(r.Context(), h.dt)
+		defer cancelCtx()
+	}
+	r = r.WithContext(ctx)
+	done := make(chan struct{})
+	go func() {
+		h.handler.ServeHTTP(tw, r)
+		close(done)
+	}()
+	select {
+	case <-done:
+		// handle done
+	case <-ctx.Done():
+		// handle timeout
+		return
+	}
+
+*BEWARE*: the *wrapped* handler must now detect context cancellation, this code
+*cannot* *ensure* nor *check* if this is the case.
+
+: context is not explicitly passed but you still have to find it out yourself
+: the documentation was not updated, so if you want to go for a first contribution, this is a good place
+
+* Walker
+[[https://golang.org/pkg/path/filepath/#WalkFunc][filepath.WalkFunc]] is used by [[https://golang.org/pkg/path/filepath/#Walk][filepath.Walk]] to navigate the file system.
+
+As the documentation states: "[...] The files are walked in lexical order, which makes the output deterministic but means that for very large directories *Walk* *can* *be* *inefficient*."
+
+.image gophercon/WalkerGopher.png 400 _
+
+* Consequences
+every go package providing a WalkFunc has to provide a way to cancel walking
+
+: out of band context passing
+
+every go package simulating a drive (e.g. [[https://github.com/GeertJohan/go.rice][go.rice]] or [[https://github.com/dutchcoders/goftp][goftp]]) has to be used with closured context.
+
+	// Obtain cancellable context or just propagate current one
+	ctx, cancel := context.WithCancel(ctx)
+	
+	// Context aware WalkFunc
+	var wf filepath.WalkFunc
+	wf = func(path string, info os.FileInfo, err error) error {
+		// capture context in the closure
+	}
+	
+	// Setup timer
+	t := time.AfterFunc(2 * time.Second, cancel)
+	defer t.Stop()
+	
+	// Start a cancellable walk
+	err := filepath.Walk(dir, wf)
+
+* Wrapping up 
+
+* Takeaways
+Always care about the scope of the variables, try to stay away from *closured* *goroutines* as much as possible
+
+Make sure your code has *checkpoints*: long computations might have a performance impact
+
+The standard library is not magical: it *cannot* and should not *stop* a *goroutine* that is running
+
+Check for *cancellation* wherever possible. Standard/external libraries might be *relying* *on* *you* to check for cancellation (e.g. the http package) 
+
+If it is not possible to check for cancellation, *add* *your* *own* context/done channel
+
+* Thanks
+
+* Questions and, hopefully, answers
+
+Twitter [[twitter.com/empijei][@empijei]]
+
+* Useful links
+
+Talks:
+
+- [[http://talks.golang.org/2013/advconc.slide][Advanced Go Concurrency Patterns (2013)]]
+- [[http://talks.golang.org/2012/concurrency.slide][Go Concurrency Patterns (2012)]]
+- [[https://blog.golang.org/concurrency-is-not-parallelism][Concurrency is not parallelism]]
+
+Tools:
+
+- Profiling code while running: [[https://golang.org/pkg/net/http/pprof/][pprof]], and the related [[https://blog.golang.org/profiling-go-programs][blogpost]]
+- 3D Tracing for goroutines: [[https://github.com/divan/gotrace][gotrace]], and related [[http://divan.github.io/talks/2016/gophercon][slides]]
+
+
+* Credits
+
+Gophers by
+
+- [[https://github.com/ashleymcnamara/gophers][ashleymcnamara]]
+- [[https://twitter.com/qbieshay][qbieshay]]
+
+Mentoring
+
+- [[https://twitter.com/raistolo][raistolo]]
