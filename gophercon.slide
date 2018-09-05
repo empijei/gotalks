@@ -6,7 +6,7 @@ Roberto Clapis
 
 [[empijei.science][empijei.science]]
 
-* Link to this slide deck: goo.gl/Tsn4nb
+* Link to this slide deck: clap.page.link/goroutines
 
 .image gophercon/slides-qr.png 430 _
 
@@ -393,7 +393,7 @@ If it is not possible to check for cancellation, *add* *your* *own* context/done
 
 .image gophercon/slides-qr.png 400 _
 
-Slides: goo.gl/Tsn4nb
+Slides: https://clap.page.link/goroutines
 
 Twitter: Roberto ([[twitter.com/empijei][@empijei]]) Clapis
 
