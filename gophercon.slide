@@ -4,7 +4,15 @@ Roberto Clapis
 
 `@`[[https://twitter.com/empijei][empijei]]
 
-[[https://github.com/empijei/gotalks][github.com/empijei/gotalks]]
+[[empijei.science][empijei.science]]
+
+* Link to this slide deck: goo.gl/Tsn4nb
+
+.image gophercon/slides-qr.png 430 _
+
+[[https://talks.godoc.org/github.com/empijei/gotalks/gophercon.slide#1][https://talks.godoc.org/github.com/empijei/gotalks/gophercon.slide#1]]
+
+Slides created with [[golang.org/x/tools/present][golang.org/x/tools/present]]
 
 * What do I do
 
@@ -14,7 +22,10 @@ Roberto Clapis
 
 - Present: information security engineer (Google)
 
-.image gophercon/MpjGopher.jpg 400 _
+- Hobby: sometimes I write stuff on [[empijei.science][empijei.science]]
+
+
+.image gophercon/MpjGopher.jpg 350 _
 
 : that's funny effect
 
@@ -225,7 +236,7 @@ It is not specified by the standard when checkpoints are emitted, but some check
 - go statements
 - I/O and syscalls
 - call runtime.Gosched()
-- non-inlined function calls
+- non-inlined function calls (`//go:noinline`)
 
 [ _Please_ _do_ _not_ _rely_ _on_ _this_ _list_ _as_ _it_ _is_ _incomplete_ _and_ _might_ _change_ _in_ _future_ _versions_ ]
 
@@ -270,6 +281,8 @@ Child goroutine:
 
 * Simple as that
 Let's take a look in the standard library...
+
+: couple of examples
 
 .image gophercon/timeouthandler.png 300 _
 
@@ -376,11 +389,13 @@ Check for *cancellation* wherever possible. Standard/external libraries might be
 
 If it is not possible to check for cancellation, *add* *your* *own* context/done channel
 
-* Thanks
-
 * Questions and, hopefully, answers
 
-Twitter [[twitter.com/empijei][@empijei]]
+.image gophercon/slides-qr.png 400 _
+
+Slides: goo.gl/Tsn4nb
+
+Twitter: Roberto ([[twitter.com/empijei][@empijei]]) Clapis
 
 * Useful links
 
@@ -389,12 +404,12 @@ Talks:
 - [[http://talks.golang.org/2013/advconc.slide][Advanced Go Concurrency Patterns (2013)]]
 - [[http://talks.golang.org/2012/concurrency.slide][Go Concurrency Patterns (2012)]]
 - [[https://blog.golang.org/concurrency-is-not-parallelism][Concurrency is not parallelism]]
+- [[https://www.youtube.com/watch?v=KBZlN0izeiY][Understanding Channels]]
 
 Tools:
 
 - Profiling code while running: [[https://golang.org/pkg/net/http/pprof/][pprof]], and the related [[https://blog.golang.org/profiling-go-programs][blogpost]]
 - 3D Tracing for goroutines: [[https://github.com/divan/gotrace][gotrace]], and related [[http://divan.github.io/talks/2016/gophercon][slides]]
-
 
 * Credits
 
@@ -402,6 +417,11 @@ Gophers by
 
 - [[https://github.com/ashleymcnamara/gophers][ashleymcnamara]]
 - [[https://twitter.com/qbieshay][qbieshay]]
+
+Tools used:
+
+- [[https://gopherize.me][gopherize.me]] to create my gopher version
+- [[https://godoc.org/golang.org/x/tools/present][present]] to create the slides
 
 Mentoring
 
