@@ -10,7 +10,7 @@ Roberto Clapis
 
 .image gophercon/slides-qr.png 430 _
 
-[[https://talks.godoc.org/github.com/empijei/gotalks/gophercon.slide#1][https://talks.godoc.org/github.com/empijei/gotalks/gophercon.slide#1]]
+Slides: [[https://clap.page.link/goroutines][https://clap.page.link/goroutines]]
 
 Slides created with [[golang.org/x/tools/present][golang.org/x/tools/present]]
 
@@ -398,6 +398,9 @@ Slides: https://clap.page.link/goroutines
 Twitter: Roberto ([[twitter.com/empijei][@empijei]]) Clapis
 
 * Useful links
+
+- [[https://www.ardanlabs.com/blog/2018/08/scheduling-in-go-part2.html][The Scheduler]] described by [[https://twitter.com/goinggodotnet][William Kennedy]]
+- [[https://github.com/golang/go/issues/24543][A bug tracking this issue]]
 
 Talks:
 
